@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_score"
+        android:orderInCategory="100"
+        android:title=""
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_remaining"
+        android:orderInCategory="100"
+        android:title=""
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/action_share_puzzle"
+        android:orderInCategory="100"
+        android:title="Share current puzzle"
+        app:showAsAction="never" />
+
+
+    <item
+        android:id="@+id/list_puzzles"
+        android:orderInCategory="100"
+        android:title="Eagle eye"
+        app:showAsAction="never" />
+</menu>

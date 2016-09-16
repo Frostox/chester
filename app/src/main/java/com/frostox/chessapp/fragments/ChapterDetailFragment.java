@@ -354,26 +354,71 @@ public class ChapterDetailFragment extends Fragment {
             }
         }
 
-        if(!flipped)
+        if(!flipped) {
 
-        for(int i=0; i<64; i++){
-            adapter.setPieceToSqi(position.getPiece(i), position.getColor(i), i);
+            for (int i = 0; i < 64; i++) {
+                adapter.setPieceToSqi(position.getPiece(i), position.getColor(i), i);
 
+            }
+
+            flipIndexes();
         }
 
-        else
+        else {
 
-        for(int i=63; i>=0; i--){
-            adapter.setPieceToSqi(position.getPiece(i), position.getColor(i), i);
+            for (int i = 63; i >= 0; i--) {
+                adapter.setPieceToSqi(position.getPiece(i), position.getColor(i), i);
+
+            }
+
+            orderIndexes();
 
         }
 
         adapter.notifyDataSetChanged();
 
+    }
+
+    public void flipIndexes(){
+        ((TextView) left.findViewById(R.id.one)).setText("8");
+        ((TextView) left.findViewById(R.id.two)).setText("7");
+        ((TextView) left.findViewById(R.id.three)).setText("6");
+        ((TextView) left.findViewById(R.id.four)).setText("5");
+        ((TextView) left.findViewById(R.id.five)).setText("4");
+        ((TextView) left.findViewById(R.id.six)).setText("3");
+        ((TextView) left.findViewById(R.id.seven)).setText("2");
+        ((TextView) left.findViewById(R.id.eight)).setText("1");
 
 
+        ((TextView) bottom.findViewById(R.id.a)).setText("h");
+        ((TextView) bottom.findViewById(R.id.b)).setText("g");
+        ((TextView) bottom.findViewById(R.id.c)).setText("f");
+        ((TextView) bottom.findViewById(R.id.d)).setText("e");
+        ((TextView) bottom.findViewById(R.id.e)).setText("d");
+        ((TextView) bottom.findViewById(R.id.f)).setText("c");
+        ((TextView) bottom.findViewById(R.id.g)).setText("b");
+        ((TextView) bottom.findViewById(R.id.h)).setText("a");
+    }
+
+    public void orderIndexes(){
+        ((TextView) left.findViewById(R.id.one)).setText("1");
+        ((TextView) left.findViewById(R.id.two)).setText("2");
+        ((TextView) left.findViewById(R.id.three)).setText("3");
+        ((TextView) left.findViewById(R.id.four)).setText("4");
+        ((TextView) left.findViewById(R.id.five)).setText("5");
+        ((TextView) left.findViewById(R.id.six)).setText("6");
+        ((TextView) left.findViewById(R.id.seven)).setText("7");
+        ((TextView) left.findViewById(R.id.eight)).setText("8");
 
 
+        ((TextView) bottom.findViewById(R.id.a)).setText("a");
+        ((TextView) bottom.findViewById(R.id.b)).setText("b");
+        ((TextView) bottom.findViewById(R.id.c)).setText("c");
+        ((TextView) bottom.findViewById(R.id.d)).setText("d");
+        ((TextView) bottom.findViewById(R.id.e)).setText("e");
+        ((TextView) bottom.findViewById(R.id.f)).setText("f");
+        ((TextView) bottom.findViewById(R.id.g)).setText("g");
+        ((TextView) bottom.findViewById(R.id.h)).setText("h");
     }
 
     public void loadPgn(String id){

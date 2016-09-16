@@ -52,6 +52,8 @@ public class GridAdapter extends BaseAdapter {
 
     private int score = 0;
 
+    private int currentPly = 0;
+
     public int getScore() {
         return score;
     }
@@ -196,6 +198,7 @@ public class GridAdapter extends BaseAdapter {
             public boolean onDrag(View v, DragEvent event) {
 
 
+
                 int dragAction = event.getAction();
                 View dragView = (View) event.getLocalState();
                 if (dragAction == DragEvent.ACTION_DRAG_EXITED) {
@@ -209,10 +212,12 @@ public class GridAdapter extends BaseAdapter {
 
                     if (validMoves.contains(Math.abs(flipped - position))) {
                         boolean next = game.goForward();
+                        currentPly++;
                         Move move = game.getPosition().getLastMove();
-
+                        int plies = game.getNumOfPlies();
 
                         if (move.getFromSqi() == fromSqi && move.getToSqi() == (Math.abs(flipped - position))) {
+
                             score += 10;
                             if (Util.getSetting("sound", activity.getApplicationContext()))
                                 sp.play(soundIds[1], 1, 1, 1, 0, 1.0f);
@@ -230,30 +235,58 @@ public class GridAdapter extends BaseAdapter {
                             sqis.get(move.getFromSqi()).setColor(game.getPosition().getColor(move.getFromSqi()));
 
                             GridAdapter.this.notifyDataSetChanged();
-
-
-                            if (game.getCurrentPly() < game.getNumOfPlies() && (Util.getSetting("multipleMoves", activity.getApplicationContext()))) {
+                            final int numPlies = game.getNumOfPlies();
+                            final int numMoves = game.getNumOfMoves();
+                            final int numNextMoves = game.getNumOfNextMoves();
+                            if (currentPly < game.getNumOfPlies() && (Util.getSetting("multipleMoves", activity.getApplicationContext()))) {
                                 final Handler handler = new Handler();
                                 handler.postDelayed(new Runnable() {
                                     @Override
                                     public void run() {
                                         game.goForward();
+                                        currentPly++;
 
-                                        Move move;
+                                        final Move move;
 
                                         move = game.getLastMove();
+                                        final int numPlies = game.getNumOfPlies();
+                                        if (currentPly >= game.getNumOfPlies() || !(Util.getSetting("multipleMoves", activity.getApplicationContext()))){
+                                            final Handler handler = new Handler();
+                                            handler.postDelayed(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    if (Util.getSetting("loadNext", activity.getApplicationContext())) {
+                                                        activity.getFragment().nextGame(score);
+                                                    } else {
+                                                        activity.getFragment().setReviewMode(true);
+
+                                                        sqis.get(move.getToSqi()).setPiece(game.getPosition().getPiece(move.getToSqi()));
+                                                        sqis.get(move.getToSqi()).setColor(game.getPosition().getColor(move.getToSqi()));
+
+                                                        sqis.get(move.getFromSqi()).setPiece(game.getPosition().getPiece(move.getFromSqi()));
+                                                        sqis.get(move.getFromSqi()).setColor(game.getPosition().getColor(move.getFromSqi()));
+
+
+                                                        GridAdapter.this.notifyDataSetChanged();
+
+                                                    }
+                                                }
+                                            }, 100);
+                                        } else {
+                                            sqis.get(move.getToSqi()).setPiece(game.getPosition().getPiece(move.getToSqi()));
+                                            sqis.get(move.getToSqi()).setColor(game.getPosition().getColor(move.getToSqi()));
+
+                                            sqis.get(move.getFromSqi()).setPiece(game.getPosition().getPiece(move.getFromSqi()));
+                                            sqis.get(move.getFromSqi()).setColor(game.getPosition().getColor(move.getFromSqi()));
+
+
+                                            GridAdapter.this.notifyDataSetChanged();
+                                        }
 //                                        sqis.get(move.getToSqi()).setPiece(sqis.get(move.getFromSqi()).getPiece());
 //                                        sqis.get(move.getToSqi()).setColor(sqis.get(move.getFromSqi()).getColor());
 //                                        sqis.get(move.getFromSqi()).setPiece(0);
 
-                                        sqis.get(move.getToSqi()).setPiece(game.getPosition().getPiece(move.getToSqi()));
-                                        sqis.get(move.getToSqi()).setColor(game.getPosition().getColor(move.getToSqi()));
 
-                                        sqis.get(move.getFromSqi()).setPiece(game.getPosition().getPiece(move.getFromSqi()));
-                                        sqis.get(move.getFromSqi()).setColor(game.getPosition().getColor(move.getFromSqi()));
-
-
-                                        GridAdapter.this.notifyDataSetChanged();
                                     }
                                 }, 500);
                             } else {
@@ -279,6 +312,7 @@ public class GridAdapter extends BaseAdapter {
                             return true;
                         } else {
                             game.goBack();
+                            currentPly--;
                             activity.getFragment().getHint().setVisibility(View.VISIBLE);
 
                             snackBar.setText("Valid Move, but think of a better solution");

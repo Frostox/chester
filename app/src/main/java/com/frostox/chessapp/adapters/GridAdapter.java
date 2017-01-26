@@ -2,11 +2,14 @@ package com.frostox.chessapp.adapters;
 
 import android.content.ClipData;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.media.AudioManager;
 import android.media.SoundPool;
 import android.os.Handler;
 import android.os.Vibrator;
+import android.support.annotation.IdRes;
 import android.support.design.widget.Snackbar;
+import android.support.v7.app.AlertDialog;
 import android.util.Log;
 import android.view.DragEvent;
 import android.view.LayoutInflater;
@@ -15,19 +18,25 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 
 import com.frostox.chessapp.activities.ChapterDetailActivity;
 import com.frostox.chessapp.R;
+import com.frostox.chessapp.activities.SuperActivity;
 import com.frostox.chessapp.util.Util;
 import com.frostox.chessapp.wrappers.SQIWrapper;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import chesspresso.Chess;
 import chesspresso.game.Game;
 import chesspresso.move.IllegalMoveException;
 import chesspresso.move.Move;
+import chesspresso.position.Position;
 
 /**
  * Created by roger on 13/4/16.
@@ -38,7 +47,7 @@ public class GridAdapter extends BaseAdapter {
     private ArrayList<Integer> validMoves = new ArrayList<>();
 
 
-    private ChapterDetailActivity activity;
+    private SuperActivity activity;
 
     private int flipped = 0;
 
@@ -84,7 +93,7 @@ public class GridAdapter extends BaseAdapter {
 
 
     // Gets the context so it can be used later
-    public GridAdapter(ChapterDetailActivity activity, LayoutInflater inflater, List<SQIWrapper> sqis) {
+    public GridAdapter(SuperActivity activity, LayoutInflater inflater, List<SQIWrapper> sqis) {
         this.activity = activity;
         layoutInflater = inflater;
         this.sqis = sqis;
@@ -228,8 +237,13 @@ public class GridAdapter extends BaseAdapter {
 //                            sqis.get(move.getToSqi()).setColor(sqis.get(fromSqi).getColor());
 //                            sqis.get(move.getFromSqi()).setPiece(0);
 
-                            sqis.get(move.getToSqi()).setPiece(game.getPosition().getPiece(move.getToSqi()));
-                            sqis.get(move.getToSqi()).setColor(game.getPosition().getColor(move.getToSqi()));
+                            if(!game.getLastMove().isPromotion()) {
+                                sqis.get(move.getToSqi()).setPiece(game.getPosition().getPiece(move.getToSqi()));
+                                sqis.get(move.getToSqi()).setColor(game.getPosition().getColor(move.getToSqi()));
+                            } else {
+                                sqis.get(move.getToSqi()).setPiece(game.getPosition().getPiece(move.getFromSqi()));
+                                sqis.get(move.getToSqi()).setColor(game.getPosition().getColor(move.getFromSqi()));
+                            }
 
                             sqis.get(move.getFromSqi()).setPiece(game.getPosition().getPiece(move.getFromSqi()));
                             sqis.get(move.getFromSqi()).setColor(game.getPosition().getColor(move.getFromSqi()));
@@ -238,27 +252,163 @@ public class GridAdapter extends BaseAdapter {
                             final int numPlies = game.getNumOfPlies();
                             final int numMoves = game.getNumOfMoves();
                             final int numNextMoves = game.getNumOfNextMoves();
-                            if (currentPly < game.getNumOfPlies() && (Util.getSetting("multipleMoves", activity.getApplicationContext()))) {
-                                final Handler handler = new Handler();
-                                handler.postDelayed(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        game.goForward();
-                                        currentPly++;
 
-                                        final Move move;
+                            //game.getPosition().getLastMove().isPromotion()
+                            if(game.getPosition().getLastMove().isPromotion()){
+                                game.goBack();
+                                int toPlay = game.getPosition().getToPlay();
+                                HashMap<Integer, Integer> hashMap = new HashMap<Integer, Integer>();
+                                hashMap.put((int) Chess.KING, 1);
+                                hashMap.put((int) Chess.QUEEN, 1);
+                                hashMap.put((int) Chess.BISHOP, 2);
+                                hashMap.put((int) Chess.ROOK, 2);
+                                hashMap.put((int) Chess.KNIGHT, 2);
+                                if(toPlay == 0){
+                                    //black played
+                                    for(int i=0; i<64; i++){
 
-                                        move = game.getLastMove();
-                                        final int numPlies = game.getNumOfPlies();
-                                        if (currentPly >= game.getNumOfPlies() || !(Util.getSetting("multipleMoves", activity.getApplicationContext()))){
-                                            final Handler handler = new Handler();
-                                            handler.postDelayed(new Runnable() {
-                                                @Override
-                                                public void run() {
-                                                    if (Util.getSetting("loadNext", activity.getApplicationContext())) {
-                                                        activity.getFragment().nextGame(score);
+                                        SQIWrapper sqi = sqis.get(i);
+
+
+                                        int piece = sqi.getPiece();
+                                        int color = sqi.getColor();
+
+                                        Integer value = null;
+                                        if(color == 1 && (value = hashMap.get(piece)) != null){
+                                            value--;
+                                            hashMap.put(piece, value);
+                                        }
+                                    }
+
+                                    Log.d("pieces", hashMap.toString());
+                                } else {
+                                    //white played
+                                    for(int i=0; i<64; i++){
+
+                                        SQIWrapper sqi = sqis.get(i);
+
+                                        int piece = sqi.getPiece();
+                                        int color = sqi.getColor();
+                                        if(color == 0){
+                                            int value = hashMap.get(piece);
+                                            value--;
+                                            hashMap.put(piece, value);
+                                        }
+                                    }
+
+                                    Log.d("pieces", hashMap.toString());
+                                }
+
+
+                                LinearLayout choosePieceLayout = (LinearLayout) activity.getLayoutInflater().inflate(R.layout.choose_piece, null);
+                                final RadioGroup radioGroup = (RadioGroup) choosePieceLayout.findViewById(R.id.choose_piece_radio_grp);
+
+
+                                for(Integer i : hashMap.keySet()){
+                                    if(hashMap.get(i) > 0) {
+                                        RadioButton radioButton = new RadioButton(activity);
+                                        radioButton.setId(i);
+                                        radioButton.setText(getPieceName(i));
+                                        radioGroup.addView(radioButton);
+                                    }
+                                }
+
+                                new AlertDialog.Builder(activity).setView(choosePieceLayout)
+                                        .setTitle("Choose a piece for promotion")
+                                        .setCancelable(false)
+                                        .setPositiveButton("Done", new DialogInterface.OnClickListener() {
+                                            @Override
+                                            public void onClick(DialogInterface dialog, int which) {
+                                                game.goForward();
+                                                int checkedId = radioGroup.getCheckedRadioButtonId();
+                                                int piece = game.getPosition().getPiece(game.getLastMove().getToSqi());
+                                                if(checkedId == piece){
+                                                    //yes
+
+                                                    Move move = game.getLastMove();
+                                                    sqis.get(move.getToSqi()).setPiece(game.getPosition().getPiece(move.getToSqi()));
+                                                    sqis.get(move.getToSqi()).setColor(game.getPosition().getColor(move.getToSqi()));
+
+                                                    sqis.get(move.getFromSqi()).setPiece(game.getPosition().getPiece(move.getFromSqi()));
+                                                    sqis.get(move.getFromSqi()).setColor(game.getPosition().getColor(move.getFromSqi()));
+
+
+                                                    if (currentPly < game.getNumOfPlies() && (Util.getSetting("multipleMoves", activity.getApplicationContext()))) {
+                                                        final Handler handler = new Handler();
+                                                        handler.postDelayed(new Runnable() {
+                                                            @Override
+                                                            public void run() {
+                                                                game.goForward();
+                                                                currentPly++;
+
+                                                                final Move move;
+
+                                                                move = game.getLastMove();
+                                                                final int numPlies = game.getNumOfPlies();
+                                                                if (currentPly >= game.getNumOfPlies() || !(Util.getSetting("multipleMoves", activity.getApplicationContext()))){
+                                                                    final Handler handler = new Handler();
+                                                                    handler.postDelayed(new Runnable() {
+                                                                        @Override
+                                                                        public void run() {
+                                                                            if (Util.getSetting("loadNext", activity.getApplicationContext())) {
+                                                                                activity.getFragment().nextGame(score);
+                                                                            } else {
+                                                                                activity.getFragment().setReviewMode(true);
+
+                                                                                sqis.get(move.getToSqi()).setPiece(game.getPosition().getPiece(move.getToSqi()));
+                                                                                sqis.get(move.getToSqi()).setColor(game.getPosition().getColor(move.getToSqi()));
+
+                                                                                sqis.get(move.getFromSqi()).setPiece(game.getPosition().getPiece(move.getFromSqi()));
+                                                                                sqis.get(move.getFromSqi()).setColor(game.getPosition().getColor(move.getFromSqi()));
+
+
+                                                                                GridAdapter.this.notifyDataSetChanged();
+
+                                                                            }
+                                                                        }
+                                                                    }, 100);
+                                                                } else {
+                                                                    sqis.get(move.getToSqi()).setPiece(game.getPosition().getPiece(move.getToSqi()));
+                                                                    sqis.get(move.getToSqi()).setColor(game.getPosition().getColor(move.getToSqi()));
+
+                                                                    sqis.get(move.getFromSqi()).setPiece(game.getPosition().getPiece(move.getFromSqi()));
+                                                                    sqis.get(move.getFromSqi()).setColor(game.getPosition().getColor(move.getFromSqi()));
+
+
+                                                                    GridAdapter.this.notifyDataSetChanged();
+                                                                }
+//                                        sqis.get(move.getToSqi()).setPiece(sqis.get(move.getFromSqi()).getPiece());
+//                                        sqis.get(move.getToSqi()).setColor(sqis.get(move.getFromSqi()).getColor());
+//                                        sqis.get(move.getFromSqi()).setPiece(0);
+
+
+                                                            }
+                                                        }, 500);
                                                     } else {
-                                                        activity.getFragment().setReviewMode(true);
+                                                        final Handler handler = new Handler();
+                                                        handler.postDelayed(new Runnable() {
+                                                            @Override
+                                                            public void run() {
+                                                                if (Util.getSetting("loadNext", activity.getApplicationContext())) {
+                                                                    activity.getFragment().nextGame(score);
+                                                                } else {
+                                                                    activity.getFragment().setReviewMode(true);
+
+                                                                }
+                                                            }
+                                                        }, 100);
+
+                                                    }
+
+
+                                                    activity.getFragment().getHint().setVisibility(View.INVISIBLE);
+
+                                                } else {
+                                                    //no
+                                                    boolean isPromotion = game.getLastMove().isPromotion();
+                                                    Move move = game.getLastMove();
+                                                    game.goBack();
+                                                    if(isPromotion){
 
                                                         sqis.get(move.getToSqi()).setPiece(game.getPosition().getPiece(move.getToSqi()));
                                                         sqis.get(move.getToSqi()).setColor(game.getPosition().getColor(move.getToSqi()));
@@ -266,47 +416,97 @@ public class GridAdapter extends BaseAdapter {
                                                         sqis.get(move.getFromSqi()).setPiece(game.getPosition().getPiece(move.getFromSqi()));
                                                         sqis.get(move.getFromSqi()).setColor(game.getPosition().getColor(move.getFromSqi()));
 
-
                                                         GridAdapter.this.notifyDataSetChanged();
-
                                                     }
+
+                                                    currentPly--;
+                                                    activity.getFragment().getHint().setVisibility(View.VISIBLE);
+
+                                                    snackBar.setText("Valid Choice, but think of a better solution");
+                                                    snackBar.show();
+                                                    score--;
+                                                    activity.updateScore("" + score);
                                                 }
-                                            }, 100);
-                                        } else {
-                                            sqis.get(move.getToSqi()).setPiece(game.getPosition().getPiece(move.getToSqi()));
-                                            sqis.get(move.getToSqi()).setColor(game.getPosition().getColor(move.getToSqi()));
-
-                                            sqis.get(move.getFromSqi()).setPiece(game.getPosition().getPiece(move.getFromSqi()));
-                                            sqis.get(move.getFromSqi()).setColor(game.getPosition().getColor(move.getFromSqi()));
+                                            }
+                                        }).show();
 
 
-                                            GridAdapter.this.notifyDataSetChanged();
-                                        }
+
+
+                            } else {
+                                if (currentPly < game.getNumOfPlies() && (Util.getSetting("multipleMoves", activity.getApplicationContext()))) {
+                                    final Handler handler = new Handler();
+                                    handler.postDelayed(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            game.goForward();
+                                            currentPly++;
+
+                                            final Move move;
+
+                                            move = game.getLastMove();
+                                            final int numPlies = game.getNumOfPlies();
+                                            if (currentPly >= game.getNumOfPlies() || !(Util.getSetting("multipleMoves", activity.getApplicationContext()))){
+                                                final Handler handler = new Handler();
+                                                handler.postDelayed(new Runnable() {
+                                                    @Override
+                                                    public void run() {
+                                                        if (Util.getSetting("loadNext", activity.getApplicationContext())) {
+                                                            activity.getFragment().nextGame(score);
+                                                        } else {
+                                                            activity.getFragment().setReviewMode(true);
+
+                                                            sqis.get(move.getToSqi()).setPiece(game.getPosition().getPiece(move.getToSqi()));
+                                                            sqis.get(move.getToSqi()).setColor(game.getPosition().getColor(move.getToSqi()));
+
+                                                            sqis.get(move.getFromSqi()).setPiece(game.getPosition().getPiece(move.getFromSqi()));
+                                                            sqis.get(move.getFromSqi()).setColor(game.getPosition().getColor(move.getFromSqi()));
+
+
+                                                            GridAdapter.this.notifyDataSetChanged();
+
+                                                        }
+                                                    }
+                                                }, 100);
+                                            } else {
+                                                sqis.get(move.getToSqi()).setPiece(game.getPosition().getPiece(move.getToSqi()));
+                                                sqis.get(move.getToSqi()).setColor(game.getPosition().getColor(move.getToSqi()));
+
+                                                sqis.get(move.getFromSqi()).setPiece(game.getPosition().getPiece(move.getFromSqi()));
+                                                sqis.get(move.getFromSqi()).setColor(game.getPosition().getColor(move.getFromSqi()));
+
+
+                                                GridAdapter.this.notifyDataSetChanged();
+                                            }
 //                                        sqis.get(move.getToSqi()).setPiece(sqis.get(move.getFromSqi()).getPiece());
 //                                        sqis.get(move.getToSqi()).setColor(sqis.get(move.getFromSqi()).getColor());
 //                                        sqis.get(move.getFromSqi()).setPiece(0);
 
 
-                                    }
-                                }, 500);
-                            } else {
-                                final Handler handler = new Handler();
-                                handler.postDelayed(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        if (Util.getSetting("loadNext", activity.getApplicationContext())) {
-                                            activity.getFragment().nextGame(score);
-                                        } else {
-                                            activity.getFragment().setReviewMode(true);
-
                                         }
-                                    }
-                                }, 100);
+                                    }, 500);
+                                } else {
+                                    final Handler handler = new Handler();
+                                    handler.postDelayed(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            if (Util.getSetting("loadNext", activity.getApplicationContext())) {
+                                                activity.getFragment().nextGame(score);
+                                            } else {
+                                                activity.getFragment().setReviewMode(true);
+
+                                            }
+                                        }
+                                    }, 100);
+
+                                }
+
+
+                                activity.getFragment().getHint().setVisibility(View.INVISIBLE);
 
                             }
 
 
-                            activity.getFragment().getHint().setVisibility(View.INVISIBLE);
 
 
                             return true;
@@ -436,6 +636,26 @@ public class GridAdapter extends BaseAdapter {
 
         this.notifyDataSetChanged();
 
+    }
+
+    public String getPieceName(int piece){
+        switch (piece){
+            case Chess.PAWN:
+                return "PAWN";
+            case Chess.KING:
+                return "KING";
+            case Chess.QUEEN:
+                return "QUEEN";
+            case Chess.ROOK:
+                return "ROOK";
+            case Chess.BISHOP:
+                return "BISHOP";
+            case Chess.KNIGHT:
+                return "KNIGHT";
+
+        }
+
+        return "UNKNOWN";
     }
 
 }

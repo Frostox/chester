@@ -98,6 +98,7 @@
             android:numColumns="8"
             android:background="#ffffff"
             android:rotationY="180"
+            android:layout_marginRight="20dp"
             />
 
         <LinearLayout

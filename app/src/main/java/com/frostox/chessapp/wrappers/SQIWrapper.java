@@ -1,9 +1,11 @@
 package com.frostox.chessapp.wrappers;
 
+import java.io.Serializable;
+
 /**
  * Created by roger on 13/4/16.
  */
-public class SQIWrapper {
+public class SQIWrapper implements Serializable{
     private Integer piece;
     private int sqi;
     private boolean isBlack;

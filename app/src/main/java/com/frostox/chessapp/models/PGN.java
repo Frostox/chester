@@ -1,9 +1,11 @@
 package com.frostox.chessapp.models;
 
+import java.io.Serializable;
+
 /**
  * Created by roger on 6/4/16.
  */
-public class PGN {
+public class PGN implements Serializable{
 
     private String chapter;
 

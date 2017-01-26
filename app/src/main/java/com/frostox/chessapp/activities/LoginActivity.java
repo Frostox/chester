@@ -95,7 +95,8 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
                 if (connected) {
                     mEmailSignInButton.setEnabled(true);
                 } else {
-                    Toast.makeText(LoginActivity.this, "Internet connection was lost", Toast.LENGTH_LONG).show();
+                    if(mProgressView.getVisibility() == View.VISIBLE)
+                        Toast.makeText(LoginActivity.this, "Internet connection was lost", Toast.LENGTH_LONG).show();
                     mEmailSignInButton.setEnabled(false);
                     showProgress(false);
                 }
@@ -267,7 +268,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
                 @Override
                 public void onAuthenticated(AuthData authData) {
                     System.out.println("User ID: " + authData.getUid() + ", Provider: " + authData.getProvider());
-                    Toast.makeText(LoginActivity.this, "User ID: " + authData.getUid() + ", Provider: " + authData.getProvider(), Toast.LENGTH_LONG).show();
+                    //Toast.makeText(LoginActivity.this, "User ID: " + authData.getUid() + ", Provider: " + authData.getProvider(), Toast.LENGTH_LONG).show();
 
                     final Query queryUsers = new Firebase("https://blistering-heat-8553.firebaseio.com/users").orderByChild("uid").equalTo(ref.getAuth().getUid()).limitToFirst(1);
 

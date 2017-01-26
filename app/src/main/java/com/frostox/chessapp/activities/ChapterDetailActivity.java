@@ -5,6 +5,8 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.support.design.widget.CollapsingToolbarLayout;
+import android.support.design.widget.CoordinatorLayout;
 import android.support.v4.app.NavUtils;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
@@ -32,23 +34,15 @@ import butterknife.ButterKnife;
  * item details are presented side-by-side with a list of items
  * in a {@link ChapterListActivity}.
  */
-public class ChapterDetailActivity extends AppCompatActivity {
+public class ChapterDetailActivity extends SuperActivity {
 
     public static int RESULT = 123;
 
-    @Bind(R.id.tscore)
-    TextView score;
-
-    @Bind(R.id.tremaining)
-    TextView remaining;
 
 
 
-    ChapterDetailFragment fragment;
 
-    public ChapterDetailFragment getFragment(){
-        return fragment;
-    }
+
 
 
 
@@ -99,16 +93,14 @@ public class ChapterDetailActivity extends AppCompatActivity {
             getSupportFragmentManager().beginTransaction()
                     .add(R.id.chapter_detail_container, fragment)
                     .commit();
+
+            coordinatorLayout = (CoordinatorLayout) findViewById(R.id.coord);
+            score = (TextView) findViewById(R.id.tscore);
+            remaining = (TextView) findViewById(R.id.tremaining);
         }
     }
 
-    public void updateStats(boolean isCorrect){
-        fragment.updateStats(isCorrect);
-    }
 
-    public void goBack(){
-        NavUtils.navigateUpTo(this, new Intent(this, ChapterListActivity.class));
-    }
 
     Random random = new Random();
     @Override
@@ -191,14 +183,7 @@ public class ChapterDetailActivity extends AppCompatActivity {
     }
 
 
-    public void updateScore(String score){
-        this.score.setText(score);
-    }
 
-
-    public void updateRemaining(String remaining){
-        this.remaining.setText(remaining);
-    }
 
 
 }

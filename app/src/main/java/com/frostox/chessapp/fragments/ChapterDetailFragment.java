@@ -6,6 +6,7 @@ import android.content.DialogInterface;
 import android.support.design.widget.CollapsingToolbarLayout;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -25,6 +26,7 @@ import com.firebase.client.ValueEventListener;
 import com.frostox.chessapp.R;
 import com.frostox.chessapp.activities.ChapterDetailActivity;
 import com.frostox.chessapp.activities.ChapterListActivity;
+import com.frostox.chessapp.activities.SuperActivity;
 import com.frostox.chessapp.adapters.GridAdapter;
 import com.frostox.chessapp.models.Chapter;
 import com.frostox.chessapp.models.PGN;
@@ -34,12 +36,15 @@ import com.frostox.chessapp.wrappers.SQIWrapper;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
 
 import chesspresso.game.Game;
+import chesspresso.move.Move;
 import chesspresso.pgn.PGNReader;
 import chesspresso.pgn.PGNSyntaxError;
+import chesspresso.position.ImmutablePosition;
 import chesspresso.position.Position;
 
 
@@ -63,7 +68,7 @@ public class ChapterDetailFragment extends Fragment {
      * The dummy content this fragment is presenting.
      */
     private Chapter chapter;
-    private List<PGN> pgns;
+    private ArrayList<PGN> pgns;
     Firebase refPGNs;
 
     private int index = 0;
@@ -193,9 +198,91 @@ public class ChapterDetailFragment extends Fragment {
     }
 
     @Override
+    public void onActivityCreated(Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+
+        if (savedInstanceState != null) {
+
+            ((SuperActivity) getActivity()).setFragment(this);
+
+            sqis = (ArrayList) savedInstanceState.getSerializable("sqis");
+            pgns = (ArrayList) savedInstanceState.getSerializable("pgns");
+            current = (int) savedInstanceState.getSerializable("current");
+            Short lastMove;
+            try {
+                lastMove = (short) savedInstanceState.getSerializable("lastMove");
+            } catch (Exception e) {
+                e.printStackTrace();
+                lastMove = null;
+            }
+
+            reviveGame(sqis, pgns, current, lastMove);
+
+
+        } else {
+            //get list and load in list view
+            Log.d("first time", "first_time");
+
+            if (getArguments().containsKey(ARG_ITEM_ID) && getArguments().containsKey(ARG_ITEM_NAME) && pgns == null) {
+                // Load the dummy content specified by the fragment
+                // arguments. In a real-world scenario, use a Loader
+                // to load content from a content provider.
+                pgns = new ArrayList<>();
+                refPGNs = new Firebase("https://blistering-heat-8553.firebaseio.com/pgns");
+                final Query query = refPGNs.orderByChild("chapter").equalTo(getArguments().getString(ARG_ITEM_ID));
+
+                chapter = new Chapter();
+                chapter.setId(getArguments().getString(ARG_ITEM_ID));
+                chapter.setChapter(getArguments().getString(ARG_ITEM_NAME));
+
+                Activity activity = this.getActivity();
+                CollapsingToolbarLayout appBarLayout = (CollapsingToolbarLayout) activity.findViewById(R.id.toolbar_layout);
+                if (appBarLayout != null) {
+                    appBarLayout.setTitle(chapter.getChapter());
+                }
+
+                query.addValueEventListener(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot snapshot) {
+
+
+                        for (DataSnapshot postSnapshot: snapshot.getChildren()) {
+                            PGN pgn = postSnapshot.getValue(PGN.class);
+                            pgn.setId(postSnapshot.getKey());
+                            pgns.add(pgn);
+                            pgnIds.add(postSnapshot.getKey());
+                        }
+
+
+                        if(!pgns.isEmpty()){
+                            setUpGame(pgns.get(current-1));
+                            ((ChapterDetailActivity) ChapterDetailFragment.this.getActivity()).updateRemaining(current+"/"+pgns.size());
+                        }
+
+                        query.removeEventListener(this);
+
+
+                    }
+                    @Override
+                    public void onCancelled(FirebaseError firebaseError) {
+                        System.out.println("The read failed: " + firebaseError.getMessage());
+                    }
+                });
+
+
+
+
+            }
+        }
+    }
+
+
+    @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.chapter_detail, container, false);
+
+
 
         // Show the dummy content as text in a TextView.
         if (chapter != null) {
@@ -253,69 +340,102 @@ public class ChapterDetailFragment extends Fragment {
         }
 
 
-        if (getArguments().containsKey(ARG_ITEM_ID) && getArguments().containsKey(ARG_ITEM_NAME)) {
-            // Load the dummy content specified by the fragment
-            // arguments. In a real-world scenario, use a Loader
-            // to load content from a content provider.
-            pgns = new ArrayList<>();
-            refPGNs = new Firebase("https://blistering-heat-8553.firebaseio.com/pgns");
-            final Query query = refPGNs.orderByChild("chapter").equalTo(getArguments().getString(ARG_ITEM_ID));
 
-            chapter = new Chapter();
-            chapter.setId(getArguments().getString(ARG_ITEM_ID));
-            chapter.setChapter(getArguments().getString(ARG_ITEM_NAME));
-
-            Activity activity = this.getActivity();
-            CollapsingToolbarLayout appBarLayout = (CollapsingToolbarLayout) activity.findViewById(R.id.toolbar_layout);
-            if (appBarLayout != null) {
-                appBarLayout.setTitle(chapter.getChapter());
-            }
-
-            query.addValueEventListener(new ValueEventListener() {
-                @Override
-                public void onDataChange(DataSnapshot snapshot) {
-
-
-                    for (DataSnapshot postSnapshot: snapshot.getChildren()) {
-                        PGN pgn = postSnapshot.getValue(PGN.class);
-                        pgn.setId(postSnapshot.getKey());
-                        pgns.add(pgn);
-                        pgnIds.add(postSnapshot.getKey());
-                    }
-
-
-                    if(!pgns.isEmpty()){
-                        setUpGame(pgns.get(current-1));
-                        ((ChapterDetailActivity) ChapterDetailFragment.this.getActivity()).updateRemaining(current+"/"+pgns.size());
-                    }
-
-                    query.removeEventListener(this);
-
-
-                }
-                @Override
-                public void onCancelled(FirebaseError firebaseError) {
-                    System.out.println("The read failed: " + firebaseError.getMessage());
-                }
-            });
-
-
-
-
-        }
 
         return rootView;
     }
 
-    List<SQIWrapper> sqis = new ArrayList<>();
+    ArrayList<SQIWrapper> sqis = new ArrayList<>();
+
+    public void reviveGame(ArrayList<SQIWrapper> sqis, ArrayList<PGN> pgns, int current, Short lastMove){
+        this.sqis = sqis;
+//        sqis = new ArrayList<>();
+//        for(int i=0; i<64; i++)
+//            sqis.add(new SQIWrapper(i+1));
+        this.pgns = pgns;
+        this.current = current;
+        PGN pgn = pgns.get(current-1);
+
+        adapter = new GridAdapter((SuperActivity) this.getActivity(), this.getActivity().getLayoutInflater(), sqis);
+        gridView.setAdapter(adapter);
+
+        StringReader sReader = new StringReader(pgn.getContent());
+        PGNReader pReader = new PGNReader(sReader, pgn.getId());
+        try {
+            game = null;
+            game = pReader.parseGame();
+            adapter.setGame(game);
+        } catch (PGNSyntaxError pgnSyntaxError) {
+            pgnSyntaxError.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        if(game == null) return;
 
 
+        game.goBackToLineBegin();
+
+
+
+        Position position = game.getPosition();
+        boolean flipped = false;
+
+        if(position.getToPlay() == 0){
+            toPlay.setText("White To Play");
+
+
+            if(Util.getSetting("rotation", getActivity().getApplicationContext())){
+                adapter.flipBoard();
+                flipped = true;
+            }
+        } else {
+            toPlay.setText("Black To Play");
+            if(!Util.getSetting("rotation", getActivity().getApplicationContext())){
+                adapter.flipBoard();
+                flipped = true;
+            }
+        }
+
+        if(!flipped) {
+
+//            for (int i = 0; i < 64; i++) {
+//                adapter.setPieceToSqi(position.getPiece(i), position.getColor(i), i);
+//
+//            }
+
+            flipIndexes();
+        }
+
+        else {
+
+//            for (int i = 63; i >= 0; i--) {
+//                adapter.setPieceToSqi(position.getPiece(i), position.getColor(i), i);
+//
+//            }
+
+            orderIndexes();
+
+        }
+
+        adapter.notifyDataSetChanged();
+
+        if(lastMove != null) {
+            game.goForward();
+            while (game.getPosition().getLastMove().getShortMoveDesc() != lastMove) {
+                game.goForward();
+            }
+        }
+
+        adapter.notifyDataSetChanged();
+
+    }
 
     public void setUpGame(PGN pgn){
         sqis.clear();
         for(int i=0; i<64; i++)
             sqis.add(new SQIWrapper(i+1));
-        adapter = new GridAdapter(((ChapterDetailActivity) this.getActivity()), this.getActivity().getLayoutInflater(), sqis);
+        adapter = new GridAdapter((SuperActivity) this.getActivity(), this.getActivity().getLayoutInflater(), sqis);
         gridView.setAdapter(adapter);
 
         StringReader sReader = new StringReader(pgn.getContent());
@@ -468,7 +588,22 @@ public class ChapterDetailFragment extends Fragment {
         return hint;
     }
 
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putSerializable("sqis", sqis);
+        outState.putSerializable("pgns", pgns);
+        outState.putSerializable("current", current);
+        Move move = game.getPosition().getLastMove();
+        if(move!=null) {
+            Short lastMove = move.getShortMoveDesc();
+            outState.putSerializable("lastMove", lastMove);
+        }
 
-
-
+    }
 }
+
+
+
+
+

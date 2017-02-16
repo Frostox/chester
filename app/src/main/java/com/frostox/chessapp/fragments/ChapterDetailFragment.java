@@ -18,11 +18,6 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.firebase.client.DataSnapshot;
-import com.firebase.client.Firebase;
-import com.firebase.client.FirebaseError;
-import com.firebase.client.Query;
-import com.firebase.client.ValueEventListener;
 import com.frostox.chessapp.R;
 import com.frostox.chessapp.activities.ChapterDetailActivity;
 import com.frostox.chessapp.activities.ChapterListActivity;
@@ -33,6 +28,12 @@ import com.frostox.chessapp.models.PGN;
 import com.frostox.chessapp.models.User;
 import com.frostox.chessapp.util.Util;
 import com.frostox.chessapp.wrappers.SQIWrapper;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
+import com.google.firebase.database.ValueEventListener;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -69,7 +70,7 @@ public class ChapterDetailFragment extends Fragment {
      */
     private Chapter chapter;
     private ArrayList<PGN> pgns;
-    Firebase refPGNs;
+    DatabaseReference refPGNs;
 
     private int index = 0;
 
@@ -110,8 +111,8 @@ public class ChapterDetailFragment extends Fragment {
 
     private int current = 1;
 
-    Firebase refUser;
-    Firebase ref;
+    FirebaseDatabase database;
+    DatabaseReference ref, refUser;
 
     List<String> pgnIds = new ArrayList<>();
 
@@ -129,7 +130,7 @@ public class ChapterDetailFragment extends Fragment {
 
     public void updateStats(boolean isCorrect){
         if(isCorrect){
-            final Firebase correctRef = ref.child("users").child(userKey).child("correct");
+            final DatabaseReference correctRef = ref.child("users").child(userKey).child("correct");
             correctRef.addValueEventListener(new ValueEventListener() {
                 @Override
                 public void onDataChange(DataSnapshot dataSnapshot) {
@@ -143,12 +144,12 @@ public class ChapterDetailFragment extends Fragment {
                 }
 
                 @Override
-                public void onCancelled(FirebaseError firebaseError) {
+                public void onCancelled(DatabaseError firebaseError) {
                     correctRef.removeEventListener(this);
                 }
             });
         } else {
-            final Firebase correctRef = ref.child("users").child(userKey).child("wrong");
+            final DatabaseReference correctRef = ref.child("users").child(userKey).child("wrong");
             correctRef.addValueEventListener(new ValueEventListener() {
                 @Override
                 public void onDataChange(DataSnapshot dataSnapshot) {
@@ -162,7 +163,7 @@ public class ChapterDetailFragment extends Fragment {
                 }
 
                 @Override
-                public void onCancelled(FirebaseError firebaseError) {
+                public void onCancelled(DatabaseError firebaseError) {
                     correctRef.removeEventListener(this);
                 }
             });
@@ -175,7 +176,8 @@ public class ChapterDetailFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        ref = new Firebase("https://blistering-heat-8553.firebaseio.com");
+        database = FirebaseDatabase.getInstance();
+        ref = database.getReference();
 
         userKey = getArguments().getString("userKey");
         System.out.println("here >>>>" + userKey);
@@ -228,7 +230,7 @@ public class ChapterDetailFragment extends Fragment {
                 // arguments. In a real-world scenario, use a Loader
                 // to load content from a content provider.
                 pgns = new ArrayList<>();
-                refPGNs = new Firebase("https://blistering-heat-8553.firebaseio.com/pgns");
+                refPGNs = ref.child("pgns");
                 final Query query = refPGNs.orderByChild("chapter").equalTo(getArguments().getString(ARG_ITEM_ID));
 
                 chapter = new Chapter();
@@ -264,7 +266,7 @@ public class ChapterDetailFragment extends Fragment {
 
                     }
                     @Override
-                    public void onCancelled(FirebaseError firebaseError) {
+                    public void onCancelled(DatabaseError firebaseError) {
                         System.out.println("The read failed: " + firebaseError.getMessage());
                     }
                 });
@@ -553,8 +555,7 @@ public class ChapterDetailFragment extends Fragment {
     public void nextGame(int score){
 
 
-
-        Firebase userPgnRef = new Firebase("https://blistering-heat-8553.firebaseio.com/users/" + userKey + "/pgns/" + pgns.get(current-1).getId());
+        DatabaseReference userPgnRef = ref.child("users").child(userKey).child("pgns").child(pgns.get(current-1).getId());
 
         userPgnRef.setValue(score);
         if(pgns.size()==current){
@@ -569,7 +570,7 @@ public class ChapterDetailFragment extends Fragment {
                     })
                     .setIcon(android.R.drawable.ic_dialog_info)
                     .show();
-        }else{
+        } else {
 
 
             toast.setText("Well done! You scored " + score);

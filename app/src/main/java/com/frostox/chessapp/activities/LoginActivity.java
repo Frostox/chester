@@ -20,6 +20,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -32,15 +33,19 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import com.firebase.client.AuthData;
-import com.firebase.client.DataSnapshot;
-import com.firebase.client.Firebase;
-import com.firebase.client.FirebaseError;
-import com.firebase.client.Query;
-import com.firebase.client.ValueEventListener;
 import com.frostox.chessapp.R;
-import com.frostox.chessapp.util.Util;
+import com.frostox.chessapp.models.User;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -74,78 +79,97 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
     private EditText mPasswordView;
     private View mProgressView;
     private View mLoginFormView;
+
+    private FirebaseDatabase database;
+    private FirebaseAuth mAuth;
+    private FirebaseAuth.AuthStateListener mAuthListener;
+
     Button mEmailSignInButton;
 
-    Firebase ref;
+    DatabaseReference ref;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
+        database = FirebaseDatabase.getInstance();
+        ref = database.getReference();
+        mAuth = FirebaseAuth.getInstance();
 
-        ref = new Firebase("https://blistering-heat-8553.firebaseio.com");
         mEmailSignInButton = (Button) findViewById(R.id.email_sign_in_button);
 
-        Firebase connectedRef = new Firebase("https://blistering-heat-8553.firebaseio.com/.info/connected");
-        connectedRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot snapshot) {
-                boolean connected = snapshot.getValue(Boolean.class);
-                if (connected) {
-                    mEmailSignInButton.setEnabled(true);
-                } else {
-                    if(mProgressView.getVisibility() == View.VISIBLE)
-                        Toast.makeText(LoginActivity.this, "Internet connection was lost", Toast.LENGTH_LONG).show();
-                    mEmailSignInButton.setEnabled(false);
-                    showProgress(false);
-                }
-            }
-            @Override
-            public void onCancelled(FirebaseError error) {
-                System.err.println("Listener was cancelled");
-            }
-        });
-
-        if (ref.getAuth() != null) {
-
-
-            final Query query = ref.child("users").orderByChild("uid").equalTo(ref.getAuth().getUid());
-            query.addValueEventListener(new ValueEventListener() {
-                @Override
-                public void onDataChange(DataSnapshot snapshot) {
-
-
-                    for (DataSnapshot postSnapshot: snapshot.getChildren()) {
-                        if((boolean)(postSnapshot.child("blocked").getValue())){
-                            Toast.makeText(LoginActivity.this, "Sorry, But you are blocked!", Toast.LENGTH_LONG).show();
-                            ref.unauth();
-                            showProgress(false);
-
+        database.getReference(".info/connected")
+                .addValueEventListener(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+                        boolean connected = dataSnapshot.getValue(Boolean.class);
+                        if (connected) {
+                            mEmailSignInButton.setEnabled(true);
                         } else {
-                            Toast.makeText(LoginActivity.this, "Already logged in", Toast.LENGTH_LONG).show();
-                            Intent i = new Intent(LoginActivity.this, ChapterListActivity.class);
-                            i.putExtra("userKey", postSnapshot.getKey());
-
-                            i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            LoginActivity.this.startActivity(i);
-                            finish();
-                            query.removeEventListener(this);
+                            if(mProgressView.getVisibility() == View.VISIBLE)
+                                Toast.makeText(LoginActivity.this, "Internet connection was lost", Toast.LENGTH_LONG).show();
+                            mEmailSignInButton.setEnabled(false);
+                            showProgress(false);
                         }
-
                     }
 
+                    @Override
+                    public void onCancelled(DatabaseError databaseError) {
+
+                    }
+                });
+
+        mAuthListener = new FirebaseAuth.AuthStateListener() {
+            @Override
+            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+                FirebaseUser user = firebaseAuth.getCurrentUser();
+                if (user != null) {
+                    // User is signed in
+
+
+                    final Query queryUsers = ref.child("users").orderByChild("uid").equalTo(user.getUid()).limitToFirst(1);
+
+                    queryUsers.addValueEventListener(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(DataSnapshot dataSnapshot) {
+
+
+
+                            for (DataSnapshot postSnapshot: dataSnapshot.getChildren()) {
+
+                                if((boolean)(postSnapshot.child("blocked").getValue())){
+                                    Toast.makeText(LoginActivity.this, "Sorry, But you are blocked!", Toast.LENGTH_LONG).show();
+                                    mAuth.signOut();
+                                    showProgress(false);
+
+                                } else {
+                                    Intent i = new Intent(LoginActivity.this, ChapterListActivity.class);
+                                    i.putExtra("userKey", postSnapshot.getKey());
+                                    System.out.println("here >> " + postSnapshot.getKey());
+                                    i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                    LoginActivity.this.startActivity(i);
+                                    finish();
+                                    queryUsers.removeEventListener(this);
+                                }
+
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(DatabaseError databaseError) {
+                            Toast.makeText(LoginActivity.this, databaseError.getMessage(), Toast.LENGTH_LONG).show();
+                        }
+                    });
+
+                } else {
+                    // User is signed out
 
                 }
-                @Override
-                public void onCancelled(FirebaseError firebaseError) {
-                    System.out.println("The read failed: " + firebaseError.getMessage());
-                }
-            });
-
-
-        }
+                // ...
+            }
+        };
 
         // Set up the login form.
         mEmailView = (AutoCompleteTextView) findViewById(R.id.email);
@@ -264,63 +288,21 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
-            ref.authWithPassword(email, password, new Firebase.AuthResultHandler() {
-                @Override
-                public void onAuthenticated(AuthData authData) {
-                    System.out.println("User ID: " + authData.getUid() + ", Provider: " + authData.getProvider());
-                    //Toast.makeText(LoginActivity.this, "User ID: " + authData.getUid() + ", Provider: " + authData.getProvider(), Toast.LENGTH_LONG).show();
 
-                    final Query queryUsers = new Firebase("https://blistering-heat-8553.firebaseio.com/users").orderByChild("uid").equalTo(ref.getAuth().getUid()).limitToFirst(1);
-
-                    queryUsers.addValueEventListener(new ValueEventListener() {
+            mAuth.signInWithEmailAndPassword(email, password)
+                    .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
                         @Override
-                        public void onDataChange(DataSnapshot dataSnapshot) {
+                        public void onComplete(@NonNull Task<AuthResult> task) {
 
-
-
-                            for (DataSnapshot postSnapshot: dataSnapshot.getChildren()) {
-
-                                if((boolean)(postSnapshot.child("blocked").getValue())){
-                                    Toast.makeText(LoginActivity.this, "Sorry, But you are blocked!", Toast.LENGTH_LONG).show();
-                                    ref.unauth();
-                                    showProgress(false);
-
-                                } else {
-                                    Intent i = new Intent(LoginActivity.this, ChapterListActivity.class);
-                                    i.putExtra("userKey", postSnapshot.getKey());
-                                    System.out.println("here >> " + postSnapshot.getKey());
-                                    i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                                    LoginActivity.this.startActivity(i);
-                                    finish();
-                                    queryUsers.removeEventListener(this);
-                                }
-
+                            if (!task.isSuccessful()) {
+                                Toast.makeText(LoginActivity.this, "Login Failed",
+                                        Toast.LENGTH_SHORT).show();
+                                showProgress(false);
                             }
+
+                            // ...
                         }
-
-                        @Override
-                        public void onCancelled(FirebaseError firebaseError) {
-                            Toast.makeText(LoginActivity.this, firebaseError.getMessage(), Toast.LENGTH_LONG).show();
-                        }
-
-
                     });
-
-
-
-
-
-
-                }
-
-                @Override
-                public void onAuthenticationError(FirebaseError firebaseError) {
-                    // there was an error
-                    Toast.makeText(LoginActivity.this, firebaseError.getMessage(), Toast.LENGTH_LONG).show();
-                    showProgress(false);
-                }
-            });
         }
     }
 
@@ -505,6 +487,20 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        mAuth.addAuthStateListener(mAuthListener);
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        if (mAuthListener != null) {
+            mAuth.removeAuthStateListener(mAuthListener);
+        }
     }
 }
 

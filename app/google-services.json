@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "480343469215",
+    "firebase_url": "https://blistering-heat-8553.firebaseio.com",
+    "project_id": "blistering-heat-8553",
+    "storage_bucket": "blistering-heat-8553.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:480343469215:android:79d64c21031b0f71",
+        "android_client_info": {
+          "package_name": "com.frostox.chessapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "480343469215-101cmbq8a2lrj7frv2kpcjb1e1t4gt6b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyANCnDucxFEuO4mK8494VbxsDihFbvlgsM"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

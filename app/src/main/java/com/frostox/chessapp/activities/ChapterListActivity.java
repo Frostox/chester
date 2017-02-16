@@ -17,15 +17,17 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
-
-import com.firebase.client.DataSnapshot;
-import com.firebase.client.Firebase;
-import com.firebase.client.FirebaseError;
-import com.firebase.client.Query;
-import com.firebase.client.ValueEventListener;
 import com.frostox.chessapp.fragments.ChapterDetailFragment;
 import com.frostox.chessapp.R;
 import com.frostox.chessapp.models.Chapter;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -49,10 +51,15 @@ public class ChapterListActivity extends SuperActivity {
      */
     private boolean mTwoPane;
 
-    Firebase refChapters;
+    FirebaseDatabase database;
 
-    Firebase ref;
+    DatabaseReference refChapters;
+
+    DatabaseReference ref;
     List<Chapter> chapters;
+
+    FirebaseAuth mAuth;
+    FirebaseAuth.AuthStateListener mAuthListener;
 
 
 
@@ -80,37 +87,51 @@ public class ChapterListActivity extends SuperActivity {
         }
         chapters = new ArrayList<>();
 
-        refChapters = new Firebase("https://blistering-heat-8553.firebaseio.com/chapters");
+        mAuth = FirebaseAuth.getInstance();
 
-        ref = new Firebase("https://blistering-heat-8553.firebaseio.com");
-
-        Query query = ref.child("users").orderByChild("uid").equalTo(ref.getAuth().getUid());
-        query.addValueEventListener(new ValueEventListener() {
+        mAuthListener = new FirebaseAuth.AuthStateListener() {
             @Override
-            public void onDataChange(DataSnapshot snapshot) {
+            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+                FirebaseUser user = firebaseAuth.getCurrentUser();
+                if(user != null){
+                    Query query = ref.child("users").orderByChild("uid").equalTo(user.getUid());
+                    query.addValueEventListener(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(DataSnapshot snapshot) {
 
 
-                for (DataSnapshot postSnapshot: snapshot.getChildren()) {
-                    if((boolean)(postSnapshot.child("blocked").getValue())){
-                        Toast.makeText(ChapterListActivity.this, "Sorry, But you are blocked!", Toast.LENGTH_LONG).show();
-                        ref.unauth();
+                            for (DataSnapshot postSnapshot: snapshot.getChildren()) {
+                                if((boolean)(postSnapshot.child("blocked").getValue())){
+                                    Toast.makeText(ChapterListActivity.this, "Sorry, But you are blocked!", Toast.LENGTH_LONG).show();
+                                    mAuth.signOut();
 
-                        Intent i = new Intent(ChapterListActivity.this, LoginActivity.class);
-                        ChapterListActivity.this.startActivity(i);
+                                    Intent i = new Intent(ChapterListActivity.this, LoginActivity.class);
+                                    ChapterListActivity.this.startActivity(i);
 
-                    } else {
+                                } else {
 
-                    }
+                                }
 
+                            }
+
+
+                        }
+                        @Override
+                        public void onCancelled(DatabaseError firebaseError) {
+                            System.out.println("The read failed: " + firebaseError.getMessage());
+                        }
+                    });
                 }
+            }
+        };
+
+        database = FirebaseDatabase.getInstance();
+
+        ref = database.getReference();
+
+        refChapters = ref.child("chapters");
 
 
-            }
-            @Override
-            public void onCancelled(FirebaseError firebaseError) {
-                System.out.println("The read failed: " + firebaseError.getMessage());
-            }
-        });
 
         refChapters.addValueEventListener(new ValueEventListener() {
             @Override
@@ -126,7 +147,7 @@ public class ChapterListActivity extends SuperActivity {
                 setupRecyclerView((RecyclerView) recyclerView);
             }
             @Override
-            public void onCancelled(FirebaseError firebaseError) {
+            public void onCancelled(DatabaseError firebaseError) {
                 System.out.println("The read failed: " + firebaseError.getMessage());
             }
         });
@@ -227,7 +248,7 @@ public class ChapterListActivity extends SuperActivity {
 
         switch(id){
             case R.id.action_logout:
-                ref.unauth();
+                mAuth.signOut();
                 Intent intent = new Intent(this, LoginActivity.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(intent);

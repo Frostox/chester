@@ -14,12 +14,13 @@ import android.widget.ArrayAdapter;
 import android.widget.GridView;
 import android.widget.TextView;
 
-import com.firebase.client.DataSnapshot;
-import com.firebase.client.Firebase;
-import com.firebase.client.FirebaseError;
-import com.firebase.client.ValueEventListener;
 import com.frostox.chessapp.fragments.ChapterDetailFragment;
 import com.frostox.chessapp.R;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,7 +30,8 @@ import butterknife.ButterKnife;
 
 public class EagleEye extends AppCompatActivity {
 
-    private Firebase ref, refUserPgns;
+    private DatabaseReference ref, refUserPgns;
+    private FirebaseDatabase database;
 
     private List<String> playedPgns;
     private List<String> allPgns;
@@ -55,8 +57,11 @@ public class EagleEye extends AppCompatActivity {
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setTitle(getIntent().getStringExtra(ChapterDetailFragment.ARG_ITEM_NAME));
-        ref = new Firebase("https://blistering-heat-8553.firebaseio.com/pgns");
-        refUserPgns = new Firebase("https://blistering-heat-8553.firebaseio.com/users/" + getIntent().getStringExtra("userKey") + "/pgns");
+
+        database = FirebaseDatabase.getInstance();
+
+        ref = database.getReference("pgns");
+        refUserPgns = database.getReference("users").child(getIntent().getStringExtra("userKey")).child("pgns");
 
 
         refUserPgns.addValueEventListener(new ValueEventListener() {
@@ -95,14 +100,14 @@ public class EagleEye extends AppCompatActivity {
                     }
 
                     @Override
-                    public void onCancelled(FirebaseError firebaseError) {
+                    public void onCancelled(DatabaseError firebaseError) {
 
                     }
                 });
             }
 
             @Override
-            public void onCancelled(FirebaseError firebaseError) {
+            public void onCancelled(DatabaseError firebaseError) {
 
             }
         });

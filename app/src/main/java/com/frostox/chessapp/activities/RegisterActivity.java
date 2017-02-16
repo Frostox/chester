@@ -19,6 +19,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
@@ -29,11 +30,15 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.firebase.client.AuthData;
-import com.firebase.client.Firebase;
-import com.firebase.client.FirebaseError;
 import com.frostox.chessapp.R;
 import com.frostox.chessapp.models.User;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,12 +64,50 @@ public class RegisterActivity extends AppCompatActivity implements LoaderCallbac
     private View mLoginFormView;
     private EditText mRepPasswordView;
 
-    Firebase ref, refUsers;
+    //Firebase ref, refUsers;
+
+    private DatabaseReference ref, refUsers;
+    private FirebaseDatabase database;
+    private FirebaseAuth mAuth;
+    private FirebaseAuth.AuthStateListener mAuthListener;
+    private String TAG = "RegisterActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
+
+        database = FirebaseDatabase.getInstance();
+        mAuth = FirebaseAuth.getInstance();
+
+        mAuthListener = new FirebaseAuth.AuthStateListener() {
+            @Override
+            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+                FirebaseUser user = firebaseAuth.getCurrentUser();
+                if (user != null) {
+                    // User is signed in
+                    User upUser = new User();
+                    upUser.setEmail(upUser.getEmail());
+                    upUser.setUid(upUser.getUid());
+
+                    DatabaseReference userRef = refUsers.push();
+                    userRef.setValue(user);
+
+
+                    Intent i = new Intent(RegisterActivity.this, ChapterListActivity.class);
+                    i.putExtra("userKey", userRef.getKey());
+                    i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                    RegisterActivity.this.startActivity(i);
+                    Log.d(TAG, "onAuthStateChanged:signed_in:" + user.getUid());
+                } else {
+                    // User is signed out
+
+                    Log.d(TAG, "onAuthStateChanged:signed_out");
+                }
+                // ...
+            }
+        };
+
         // Set up the login form.
         mEmailView = (AutoCompleteTextView) findViewById(R.id.email);
         populateAutoComplete();
@@ -88,9 +131,9 @@ public class RegisterActivity extends AppCompatActivity implements LoaderCallbac
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
 
-        Firebase.setAndroidContext(this);
-        ref = new Firebase("https://blistering-heat-8553.firebaseio.com");
-        refUsers = new Firebase("https://blistering-heat-8553.firebaseio.com/users");
+        ref = database.getReference();
+        ref = database.getReference("users");
+
     }
 
     private void populateAutoComplete() {
@@ -189,41 +232,21 @@ public class RegisterActivity extends AppCompatActivity implements LoaderCallbac
             // perform the user login attempt.
             showProgress(true);
             //Register TODO
-            ref.createUser(email, password, new Firebase.ValueResultHandler<Map<String, Object>>() {
-                @Override
-                public void onSuccess(Map<String, Object> result) {
-                    Toast.makeText(RegisterActivity.this, "Register Successful", Toast.LENGTH_LONG).show();
-                    ref.authWithPassword(email, password, new Firebase.AuthResultHandler() {
+
+            mAuth.createUserWithEmailAndPassword(email, password)
+                    .addOnCompleteListener(this, new OnCompleteListener<AuthResult>() {
                         @Override
-                        public void onAuthenticated(AuthData authData) {
-                            System.out.println("User ID: " + authData.getUid() + ", Provider: " + authData.getProvider());
-                            User user = new User();
-                            user.setEmail(email);
-                            user.setUid(authData.getUid());
-                            Firebase refUserLocation = refUsers.push();
-                            refUserLocation.setValue(user);
-
-
-
-                            Intent i = new Intent(RegisterActivity.this, ChapterListActivity.class);
-                            i.putExtra("userKey", refUserLocation.getKey());
-                            i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                            RegisterActivity.this.startActivity(i);
-                        }
-
-                        @Override
-                        public void onAuthenticationError(FirebaseError firebaseError) {
-                            Toast.makeText(RegisterActivity.this, firebaseError.getMessage(), Toast.LENGTH_LONG).show();
-                            showProgress(false);
+                        public void onComplete(@NonNull Task<AuthResult> task) {
+                            Log.d(TAG, "createUserWithEmail:onComplete:" + task.isSuccessful());
+                            if (!task.isSuccessful()) {
+                                Toast.makeText(RegisterActivity.this, task.getException().getMessage(),
+                                        Toast.LENGTH_SHORT).show();
+                                showProgress(false);
+                            }
                         }
                     });
-                }
-                @Override
-                public void onError(FirebaseError firebaseError) {
-                    Toast.makeText(RegisterActivity.this, firebaseError.getMessage(), Toast.LENGTH_LONG).show();
-                    showProgress(false);
-                }
-            });
+
+
         }
     }
 
@@ -331,6 +354,22 @@ public class RegisterActivity extends AppCompatActivity implements LoaderCallbac
         attemptLogin();
     }
 
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        mAuth.addAuthStateListener(mAuthListener);
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        if (mAuthListener != null) {
+            mAuth.removeAuthStateListener(mAuthListener);
+        }
+    }
+
+    
 
 }
 

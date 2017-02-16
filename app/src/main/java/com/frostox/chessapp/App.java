@@ -2,8 +2,9 @@ package com.frostox.chessapp;
 
 import android.app.Application;
 
-import com.firebase.client.Firebase;
 import com.frostox.chessapp.util.Util;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 /**
  * Created by roger on 16/4/16.
@@ -15,17 +16,17 @@ public class App extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        Firebase.setAndroidContext(this);
-        Firebase.getDefaultConfig().setPersistenceEnabled(true);
-        Firebase.getDefaultConfig().setPersistenceCacheSizeBytes(104857600);
+        FirebaseDatabase.getInstance().setPersistenceEnabled(true);
 
-        Firebase refChapters = new Firebase("https://blistering-heat-8553.firebaseio.com/chapters");
-        Firebase refPGNs = new Firebase("https://blistering-heat-8553.firebaseio.com/pgns");
-        Firebase refUserss = new Firebase("https://blistering-heat-8553.firebaseio.com/users");
+        DatabaseReference scoresRef = FirebaseDatabase.getInstance().getReference("chapters");
+        scoresRef.keepSynced(true);
 
-        refChapters.keepSynced(true);
-        refPGNs.keepSynced(true);
-        refUserss.keepSynced(true);
+        scoresRef = FirebaseDatabase.getInstance().getReference("pgns");
+        scoresRef.keepSynced(true);
+
+        scoresRef = FirebaseDatabase.getInstance().getReference("users");
+        scoresRef.keepSynced(true);
+
 
         Util.initSettings(this);
 

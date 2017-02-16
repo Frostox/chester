@@ -11,11 +11,12 @@ import android.view.View;
 import android.widget.TextView;
 
 
-import com.firebase.client.DataSnapshot;
-import com.firebase.client.Firebase;
-import com.firebase.client.FirebaseError;
-import com.firebase.client.ValueEventListener;
 import com.frostox.chessapp.R;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.Random;
 
@@ -42,7 +43,7 @@ public class ScoreActivity extends AppCompatActivity {
 
     Random random;
 
-    Firebase ref;
+    DatabaseReference ref;
 
     int initialCount = 20;
     int finalCount = 4;
@@ -109,7 +110,7 @@ public class ScoreActivity extends AppCompatActivity {
         randomize();
 
         String userKey = getIntent().getStringExtra("userKey");
-        ref = new Firebase("https://blistering-heat-8553.firebaseio.com/users/" + userKey);
+        ref = FirebaseDatabase.getInstance().getReference("users").child(userKey);
 
         ref.addValueEventListener(new ValueEventListener() {
             @Override
@@ -160,7 +161,7 @@ public class ScoreActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onCancelled(FirebaseError firebaseError) {
+            public void onCancelled(DatabaseError firebaseError) {
                 ref.removeEventListener(this);
             }
         });
